@@ -1,0 +1,36 @@
+name: Release Chromium Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Package & Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Zip Package
+        run: |
+          mkdir -p dist
+          # Exclude git directories and any other artifacts we don't want in the extension zip
+          zip -r dist/aegis-http-chromium.zip . -x "*.git*" -x "dist/*" -q
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-http-chromium
+          path: dist/aegis-http-chromium.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/aegis-http-chromium.zip
+          generate_release_notes: true
