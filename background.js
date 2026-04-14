@@ -5,7 +5,7 @@ const inboundChunks = new Map();
 
 function getPort() {
   if (!nativePort) {
-    nativePort = chrome.runtime.connectNative('com.zero.trust.gpg');
+    nativePort = chrome.runtime.connectNative('com.aegis.http.gpg');
     
     nativePort.onMessage.addListener((msg) => {
       const req = pendingRequests.get(msg.msg_id);
@@ -43,6 +43,13 @@ function getPort() {
     
     nativePort.onDisconnect.addListener(() => {
       console.error("Disconnected from native host.", chrome.runtime.lastError);
+      const errMsg = chrome.runtime.lastError ? chrome.runtime.lastError.message : "Native host disconnected";
+      
+      for (const req of pendingRequests.values()) {
+        req.reject(new Error(errMsg));
+      }
+      pendingRequests.clear();
+      
       nativePort = null;
     });
   }

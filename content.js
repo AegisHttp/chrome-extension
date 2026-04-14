@@ -6,6 +6,83 @@ script.onload = function() {
 };
 (document.head || document.documentElement).appendChild(script);
 
+function checkMissingNativeHost(errMsg) {
+  if (errMsg && (errMsg.includes('No such native application') || errMsg.includes('not found') || errMsg.includes('Native host disconnected'))) {
+    if (!document.getElementById('aegis-native-host-missing-popup')) {
+      showMissingNativeHostPopup();
+    }
+  }
+}
+
+function showMissingNativeHostPopup() {
+  const overlay = document.createElement('div');
+  overlay.id = 'aegis-native-host-missing-popup';
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0'; overlay.style.left = '0';
+  overlay.style.width = '100vw'; overlay.style.height = '100vh';
+  overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+  overlay.style.zIndex = '9999999';
+  overlay.style.display = 'flex';
+  overlay.style.justifyContent = 'center';
+  overlay.style.alignItems = 'center';
+
+  const dialog = document.createElement('div');
+  dialog.style.backgroundColor = '#fff';
+  dialog.style.padding = '30px';
+  dialog.style.borderRadius = '12px';
+  dialog.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+  dialog.style.fontFamily = 'sans-serif';
+  dialog.style.maxWidth = '450px';
+  dialog.style.textAlign = 'center';
+
+  const icon = document.createElement('div');
+  icon.innerHTML = '🚨';
+  icon.style.fontSize = '48px';
+  icon.style.marginBottom = '15px';
+  dialog.appendChild(icon);
+
+  const title = document.createElement('h2');
+  title.innerText = 'Aegis Http Native Host Missing';
+  title.style.marginTop = '0';
+  title.style.color = '#333';
+  dialog.appendChild(title);
+
+  const body = document.createElement('p');
+  body.innerHTML = 'The GPG Native Messaging Host is required by the Aegis Http extension, but it was not found on your system or the extension lacks permissions to communicate with it.<br><br>Please download and install it from the official releases page:';
+  body.style.color = '#555';
+  body.style.lineHeight = '1.5';
+  dialog.appendChild(body);
+
+  const linkDiv = document.createElement('div');
+  linkDiv.style.margin = '20px 0';
+  const repoLink = document.createElement('a');
+  repoLink.href = 'https://github.com/AegisHttp/native-host/releases';
+  repoLink.innerText = 'Download Native Host';
+  repoLink.target = '_blank';
+  repoLink.style.display = 'inline-block';
+  repoLink.style.backgroundColor = '#007BFF';
+  repoLink.style.color = '#fff';
+  repoLink.style.padding = '10px 20px';
+  repoLink.style.textDecoration = 'none';
+  repoLink.style.borderRadius = '6px';
+  repoLink.style.fontWeight = 'bold';
+  linkDiv.appendChild(repoLink);
+  dialog.appendChild(linkDiv);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.innerText = 'Close';
+  closeBtn.style.padding = '8px 16px';
+  closeBtn.style.backgroundColor = '#ccc';
+  closeBtn.style.border = 'none';
+  closeBtn.style.borderRadius = '4px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.onclick = () => document.body.removeChild(overlay);
+  dialog.appendChild(closeBtn);
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+}
+
 // Listen for custom events from the injected script or Vue app
 window.addEventListener('GPG_LOGIN_REQUEST', async (event) => {
   const data = typeof event.detail === 'string' ? JSON.parse(event.detail) : event.detail;
@@ -65,6 +142,7 @@ window.addEventListener('GPG_LOGIN_REQUEST', async (event) => {
     });
 
   } catch (err) {
+    checkMissingNativeHost(err.message);
     window.dispatchEvent(new CustomEvent('GPG_LOGIN_RESPONSE', {
       detail: JSON.stringify({ status: 'error', error: err.message })
     }));
@@ -165,6 +243,7 @@ window.addEventListener('GPG_DECRYPT_REQUEST', async (event) => {
       detail: JSON.stringify({ id, ...decryptResponse })
     }));
   } catch (err) {
+    checkMissingNativeHost(err.message);
     window.dispatchEvent(new CustomEvent('GPG_DECRYPT_RESPONSE', {
       detail: JSON.stringify({ id, status: 'error', error: err.message })
     }));
@@ -183,6 +262,7 @@ window.addEventListener('GPG_IMPORT_KEY_REQUEST', async (event) => {
       detail: JSON.stringify({ id, ...response })
     }));
   } catch (err) {
+    checkMissingNativeHost(err.message);
     window.dispatchEvent(new CustomEvent('GPG_IMPORT_KEY_RESPONSE', {
       detail: JSON.stringify({ id, status: 'error', error: err.message })
     }));
@@ -201,6 +281,7 @@ window.addEventListener('GPG_ENCRYPT_REQUEST', async (event) => {
       detail: JSON.stringify({ id, ...response })
     }));
   } catch (err) {
+    checkMissingNativeHost(err.message);
     window.dispatchEvent(new CustomEvent('GPG_ENCRYPT_RESPONSE', {
       detail: JSON.stringify({ id, status: 'error', error: err.message })
     }));

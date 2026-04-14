@@ -51,8 +51,14 @@ window.fetch = async function(...args) {
         if (!pubkey || Date.now() > expires) {
             console.log("[GPG Extension] Server Public Key missing or expired. Autonomously fetching from Ubuntu Keyserver...");
             try {
-                let pkRes = await originalFetch(`http://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=${encodeURIComponent(serverId)}`);
-                if (!pkRes.ok) {
+                let pkRes = null;
+                try {
+                    pkRes = await originalFetch(`http://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=${encodeURIComponent(serverId)}`);
+                } catch (e) {
+                    console.warn("[GPG Extension] Keyserver fetch threw exception (CORS/Network).", e);
+                }
+                
+                if (!pkRes || !pkRes.ok) {
                     console.warn("[GPG Extension] Keyserver lookup failed. Falling back to origin API...");
                     pkRes = await originalFetch(origin + "/api/server-pubkey");
                 }
@@ -176,16 +182,16 @@ window.fetch = async function(...args) {
         }
 
         try {
-            const decryptedText = await window.gpgDecrypt(encryptedText);
-            if (decryptedText && decryptedText.status === 'success') {
-                return new Response(decryptedText.text, {
+            const decryptedObj = await window.gpgDecrypt(encryptedText);
+            if (decryptedObj && decryptedObj.status === 'success') {
+                return new Response(decryptedObj.decrypted, {
                     status: response.status,
                     statusText: response.statusText,
                     headers: response.headers
                 });
             } else {
-                console.error("[GPG Extension] Decryption failed natively:", decryptedText);
-                return new Response(JSON.stringify({ _NATIVE_DECRYPT_ERROR: decryptedText.error, _RAW_CIPHER: encryptedText }), {
+                console.error("[GPG Extension] Decryption failed natively:", decryptedObj);
+                return new Response(JSON.stringify({ _NATIVE_DECRYPT_ERROR: decryptedObj.error, _RAW_CIPHER: encryptedText }), {
                     status: response.status,
                     statusText: response.statusText,
                     headers: response.headers
