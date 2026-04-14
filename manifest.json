@@ -21,8 +21,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://localhost:*/*",
-        "*://127.0.0.1:*/*"
+        "*://*/*"
       ],
       "js": [
         "content.js"
@@ -41,6 +40,6 @@
     }
   ],
   "host_permissions": [
-    "*://localhost:*/*"
+    "*://*/*"
   ]
 }

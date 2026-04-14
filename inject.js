@@ -1,10 +1,20 @@
+const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
 window.gpgLogin = function(challenge) {
   return new Promise((resolve, reject) => {
     const listener = (event) => {
       window.removeEventListener('GPG_LOGIN_RESPONSE', listener);
       const data = typeof event.detail === 'string' ? JSON.parse(event.detail) : event.detail;
       if (data.status === 'success') {
-        const sessionToken = crypto.randomUUID();
+        const sessionToken = generateUUID();
         sessionStorage.setItem('gpg_global_session_token', sessionToken);
         resolve({ signature: data.signature, email: data.email, public_key: data.public_key, session_token: sessionToken });
       } else {
@@ -103,7 +113,7 @@ window.fetch = async function(...args) {
                 let payloadObj = JSON.parse(finalPayload);
                 if (payloadObj !== null && typeof payloadObj === 'object' && !Array.isArray(payloadObj)) {
                     payloadObj._gpg_timestamp = Date.now();
-                    payloadObj._gpg_nonce = crypto.randomUUID();
+                    payloadObj._gpg_nonce = generateUUID();
                     finalPayload = JSON.stringify(payloadObj);
                 }
             } catch(e) {}
@@ -219,7 +229,7 @@ window.gpgVerifyLogin = function(challenge, email) {
             if (data.id === id) {
                 window.removeEventListener('GPG_LOGIN_RESPONSE', listener);
                 if (data.status === 'success') {
-                    const sessionToken = crypto.randomUUID();
+                    const sessionToken = generateUUID();
                     sessionStorage.setItem('gpg_global_session_token', sessionToken);
                     resolve({ ...data, session_token: sessionToken });
                 } else {
@@ -281,7 +291,7 @@ window.gpgVerifyLogin = function(challenge, email) {
                                 try {
                                     let payloadObj = JSON.parse(finalBody || "{}");
                                     payloadObj._gpg_timestamp = Date.now();
-                                    payloadObj._gpg_nonce = crypto.randomUUID();
+                                    payloadObj._gpg_nonce = generateUUID();
                                     finalBody = JSON.stringify(payloadObj);
                                 } catch(e) {}
                                 
