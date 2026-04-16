@@ -16,6 +16,7 @@ window.gpgLogin = function(challenge) {
       if (data.status === 'success') {
         const sessionToken = generateUUID();
         sessionStorage.setItem('gpg_global_session_token', sessionToken);
+        sessionStorage.setItem('gpg_global_session_email', data.email);
         resolve({ signature: data.signature, email: data.email, public_key: data.public_key, session_token: sessionToken });
       } else {
         reject(new Error(data.error));
@@ -44,6 +45,32 @@ window.fetch = async function(...args) {
     const urlString = typeof resource === 'string' ? resource : (resource.url || window.location.href);
     const origin = new URL(urlString, window.location.origin).origin;
 
+    // AUTONOMOUS AUTH INJECTION
+    const isGpgAuto = document.querySelector('meta[name="gpg-auto"]')?.content === 'true';
+    if (isGpgAuto) {
+        if (!config) config = {};
+        if (!config.headers) config.headers = {};
+        const isHeadersObj = config.headers instanceof Headers;
+        
+        let cachedToken = null;
+        let cachedEmail = null;
+        try {
+            cachedToken = sessionStorage.getItem('gpg_global_session_token');
+            cachedEmail = sessionStorage.getItem('gpg_global_session_email');
+        } catch(e) {}
+        
+        if (cachedToken && cachedEmail) {
+            if (isHeadersObj) {
+                if (!config.headers.has('x-gpg-id')) config.headers.set('x-gpg-id', cachedEmail);
+                if (!config.headers.has('x-gpg-session-token')) config.headers.set('x-gpg-session-token', cachedToken);
+            } else {
+                if (!config.headers['x-gpg-id']) config.headers['x-gpg-id'] = cachedEmail;
+                if (!config.headers['x-gpg-session-token']) config.headers['x-gpg-session-token'] = cachedToken;
+            }
+        }
+        args[1] = config;
+    }
+
     // AUTONOMOUS OUTBOUND E2E ENCRYPTION
     const cache = getServerCache();
     const serverConfig = cache[origin];
@@ -52,8 +79,10 @@ window.fetch = async function(...args) {
     const isPostOrPut = (originalMethod === 'POST' || originalMethod === 'PUT' || originalMethod === 'PATCH');
     const hasBody = !!(config && config.body);
     
+    const isEnforcedTunnel = document.querySelector('meta[name="gpg-tunnel"]')?.content === 'true';
+
     // Trigger autonomous encryption if origin is known to support GPG and there's a body or tunneling is on
-    if (serverConfig && (isTunneling || (isPostOrPut && hasBody))) {
+    if (serverConfig && (isTunneling || isEnforcedTunnel || (isPostOrPut && hasBody))) {
         let pubkey = serverConfig.pubkey;
         const expires = serverConfig.expires;
         const serverId = serverConfig.id;
@@ -95,11 +124,25 @@ window.fetch = async function(...args) {
             let finalMethod = originalMethod;
             let finalResource = resource;
 
-            if (isTunneling) {
+            if (isTunneling || isEnforcedTunnel) {
                 const urlObj = new URL(urlString, window.location.origin);
+                let tunnel_headers = {};
+                if (config && config.headers) {
+                    if (config.headers instanceof Headers) {
+                        for (let [k,v] of config.headers.entries()) {
+                            if (!k.toLowerCase().startsWith('x-gpg')) tunnel_headers[k] = v;
+                        }
+                    } else {
+                        for (let [k,v] of Object.entries(config.headers)) {
+                            if (!k.toLowerCase().startsWith('x-gpg')) tunnel_headers[k] = v;
+                        }
+                    }
+                }
+
                 finalPayload = JSON.stringify({
                     tunnel_method: originalMethod,
                     tunnel_url: urlObj.pathname + (urlObj.search || ""),
+                    tunnel_headers: tunnel_headers,
                     tunnel_body: hasBody ? (typeof config.body === 'string' ? (()=>{try{return JSON.parse(config.body)}catch(e){return config.body}})() : config.body) : null
                 });
                 finalMethod = 'POST';
@@ -136,10 +179,10 @@ window.fetch = async function(...args) {
             const targetHeaders = args[1].headers;
             if (targetHeaders instanceof Headers) {
                 targetHeaders.set('x-gpg-encrypted', 'true');
-                if (isTunneling) targetHeaders.set('x-gpg-tunnel', 'true');
+                if (isTunneling || isEnforcedTunnel) targetHeaders.set('x-gpg-tunnel', 'true');
             } else {
                 targetHeaders['x-gpg-encrypted'] = 'true';
-                if (isTunneling) targetHeaders['x-gpg-tunnel'] = 'true';
+                if (isTunneling || isEnforcedTunnel) targetHeaders['x-gpg-tunnel'] = 'true';
             }
         }
     }
@@ -231,6 +274,7 @@ window.gpgVerifyLogin = function(challenge, email) {
                 if (data.status === 'success') {
                     const sessionToken = generateUUID();
                     sessionStorage.setItem('gpg_global_session_token', sessionToken);
+                    sessionStorage.setItem('gpg_global_session_email', data.email);
                     resolve({ ...data, session_token: sessionToken });
                 } else {
                     reject(new Error(data.error));
@@ -275,13 +319,19 @@ window.gpgVerifyLogin = function(challenge, email) {
                         
                         let finalBody = body;
                         let isTunneling = false;
+                        const isEnforcedTunnel = document.querySelector('meta[name="gpg-tunnel"]')?.content === 'true';
 
                         if (serverConfig && serverConfig.id && serverConfig.pubkey && Date.now() <= serverConfig.expires) {
-                            if (serverConfig.tunneling && (_method.toUpperCase() === 'GET' || _method.toUpperCase() === 'DELETE')) {
+                            if (serverConfig.tunneling || isEnforcedTunnel) {
                                 isTunneling = true;
+                                let tunnel_headers = {};
+                                for (let [k,v] of Object.entries(_headers)) {
+                                    if (!k.toLowerCase().startsWith('x-gpg')) tunnel_headers[k] = v;
+                                }
                                 finalBody = JSON.stringify({
                                     tunnel_method: _method,
                                     tunnel_url: _url,
+                                    tunnel_headers: tunnel_headers,
                                     tunnel_body: body || null
                                 });
                                 target.open('POST', _url, true);
