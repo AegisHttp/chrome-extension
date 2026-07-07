@@ -9,6 +9,9 @@ const generateUUID = () => {
 };
 
 window.gpgLogin = function(challenge) {
+  if (!window.aegis || !window.aegis.initialized) {
+    return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
+  }
   return new Promise((resolve, reject) => {
     const listener = (event) => {
       window.removeEventListener('GPG_LOGIN_RESPONSE', listener);
@@ -41,6 +44,9 @@ function saveServerCache(cache) {
 // Patch fetch to intercept Encrypted Responses transparently
 const originalFetch = window.fetch;
 window.fetch = async function(...args) {
+    if (!window.aegis || !window.aegis.initialized) {
+        return originalFetch.apply(this, args);
+    }
     let [resource, config] = args;
     const urlString = typeof resource === 'string' ? resource : (resource.url || window.location.href);
     const origin = new URL(urlString, window.location.origin).origin;
@@ -265,6 +271,9 @@ window.fetch = async function(...args) {
 
 // Dispatch Login verification via custom event
 window.gpgVerifyLogin = function(challenge, email) {
+    if (!window.aegis || !window.aegis.initialized) {
+        return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
+    }
     return new Promise((resolve, reject) => {
         const id = Math.random().toString();
         const listener = (event) => {
@@ -292,6 +301,9 @@ window.gpgVerifyLogin = function(challenge, email) {
 
     function LockedXHR() {
         const xhr = new OriginalXHR();
+        if (!window.aegis || !window.aegis.initialized) {
+            return xhr;
+        }
         let _method = '';
         let _url = '';
         let _headers = {};
@@ -432,6 +444,9 @@ window.gpgVerifyLogin = function(challenge, email) {
 
 // Dispatch Decryption via custom event to Content Script
 window.gpgDecrypt = function(encryptedText) {
+    if (!window.aegis || !window.aegis.initialized) {
+        return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
+    }
     return new Promise((resolve, reject) => {
         const id = Math.random().toString();
         const listener = (event) => {
@@ -453,6 +468,9 @@ window.gpgDecrypt = function(encryptedText) {
 };
 
 window.gpgImportKey = function(publicKeyArmored) {
+    if (!window.aegis || !window.aegis.initialized) {
+        return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
+    }
     return new Promise((resolve, reject) => {
         const id = Math.random().toString(36).substring(7);
         const listener = (event) => {
@@ -471,6 +489,9 @@ window.gpgImportKey = function(publicKeyArmored) {
 };
 
 window.gpgEncrypt = function(plaintext, recipientEmail) {
+    if (!window.aegis || !window.aegis.initialized) {
+        return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
+    }
     return new Promise((resolve, reject) => {
         const id = Math.random().toString(36).substring(7);
         const listener = (event) => {

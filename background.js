@@ -29,7 +29,6 @@ function getPort() {
          
          if (msg.action === 'encrypt') msg.encrypted = joined;
          if (msg.action === 'decrypt') msg.decrypted = joined;
-         if (msg.action === 'export-key') msg.public_key = joined;
          if (msg.action === 'sign') msg.signature = joined;
       }
 
@@ -85,7 +84,7 @@ async function sendChunkedNativeMessage(request) {
   });
 }
 
-const ALLOWED_ACTIONS = ['list-keys', 'sign', 'export-key', 'decrypt', 'import-key', 'encrypt'];
+const ALLOWED_ACTIONS = ['list-keys', 'sign', 'decrypt', 'encrypt', 'add-subkey'];
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (ALLOWED_ACTIONS.includes(request.action)) {
