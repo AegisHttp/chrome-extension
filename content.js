@@ -56,7 +56,7 @@ function showMissingNativeHostPopup() {
   const linkDiv = document.createElement('div');
   linkDiv.style.margin = '20px 0';
   const repoLink = document.createElement('a');
-  repoLink.href = 'https://github.com/AegisHttp/native-host/releases';
+  repoLink.href = 'https://github.com/AegisHttp/native-host-rust/releases';
   repoLink.innerText = 'Download Native Host';
   repoLink.target = '_blank';
   repoLink.style.display = 'inline-block';
