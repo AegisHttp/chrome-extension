@@ -2,7 +2,7 @@
 
 ![Logo](icons/logo.png)
 
-[![Available in the Chrome Web Store](https://developer.chrome.com/docs/webstore/images/ChromeWebStore_Badge_v2_206x58.png)](https://chromewebstore.google.com/detail/lappbcambkogfmigiphapgjcglafcfnd)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/lappbcambkogfmigiphapgjcglafcfnd?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/lappbcambkogfmigiphapgjcglafcfnd)
 
 Aegis Http is an autonomous, End-to-End Encrypted (E2E) HTTP gateway extension for Google Chrome. It seamlessly intercepts REST API requests sent by frontend web applications, passing them to the locally running `Aegis Http Native Host` (Rust Daemon) where they are encrypted using PGP before hitting the network.
 
