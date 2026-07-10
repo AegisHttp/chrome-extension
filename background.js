@@ -40,9 +40,16 @@ function getPort() {
       }
     });
     
-    nativePort.onDisconnect.addListener(() => {
-      console.error("Disconnected from native host.", chrome.runtime.lastError);
-      const errMsg = chrome.runtime.lastError ? chrome.runtime.lastError.message : "Native host disconnected";
+    nativePort.onDisconnect.addListener((p) => {
+      console.error("Disconnected from native host.", chrome.runtime.lastError, p ? p.error : null);
+      let errMsg = "Native host disconnected";
+      if (chrome.runtime.lastError && chrome.runtime.lastError.message) {
+        errMsg = chrome.runtime.lastError.message;
+      } else if (p && p.error && p.error.message) {
+        errMsg = p.error.message;
+      } else if (nativePort && nativePort.error && nativePort.error.message) {
+        errMsg = nativePort.error.message;
+      }
       
       for (const req of pendingRequests.values()) {
         req.reject(new Error(errMsg));
