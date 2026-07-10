@@ -36,7 +36,7 @@ function showMissingNativeHostPopup() {
   dialog.style.textAlign = 'center';
 
   const icon = document.createElement('div');
-  icon.innerHTML = '🚨';
+  icon.textContent = '🚨';
   icon.style.fontSize = '48px';
   icon.style.marginBottom = '15px';
   dialog.appendChild(icon);
@@ -48,7 +48,10 @@ function showMissingNativeHostPopup() {
   dialog.appendChild(title);
 
   const body = document.createElement('p');
-  body.innerHTML = 'The GPG Native Messaging Host is required by the Aegis Http extension, but it was not found on your system or the extension lacks permissions to communicate with it.<br><br>Please download and install it from the official releases page:';
+  body.textContent = 'The GPG Native Messaging Host is required by the Aegis Http extension, but it was not found on your system or the extension lacks permissions to communicate with it.';
+  body.appendChild(document.createElement('br'));
+  body.appendChild(document.createElement('br'));
+  body.appendChild(document.createTextNode('Please download and install it from the official releases page:'));
   body.style.color = '#555';
   body.style.lineHeight = '1.5';
   dialog.appendChild(body);
@@ -103,8 +106,11 @@ window.addEventListener('GPG_LOGIN_REQUEST', async (event) => {
       throw new Error('No GPG secret keys found');
     }
 
-    // 2. Ask user which key to use
-    const selectedKey = await showKeySelector(keys);
+    // 2. Ask user which key to use (bypass selector if valid email is provided)
+    let selectedKey = data.email ? keys.find(k => k.email === data.email) : null;
+    if (!selectedKey) {
+      selectedKey = await showKeySelector(keys);
+    }
     if (!selectedKey) {
       throw new Error('User cancelled login');
     }
@@ -248,10 +254,17 @@ function promptCreateSubkey(key) {
     dialog.appendChild(title);
 
     const desc = document.createElement('p');
-    desc.innerHTML = `The selected GPG key (<strong>${key.email}</strong>) does not have an Encryption subkey, which is required for Aegis Http E2E Encryption.<br><br>Would you like to automatically create one?`;
     desc.style.fontSize = '14px';
     desc.style.color = '#333';
     desc.style.lineHeight = '1.4';
+    desc.appendChild(document.createTextNode('The selected GPG key ('));
+    const emailStrong = document.createElement('strong');
+    emailStrong.textContent = key.email;
+    desc.appendChild(emailStrong);
+    desc.appendChild(document.createTextNode(') does not have an Encryption subkey, which is required for Aegis Http E2E Encryption.'));
+    desc.appendChild(document.createElement('br'));
+    desc.appendChild(document.createElement('br'));
+    desc.appendChild(document.createTextNode('Would you like to automatically create one?'));
     dialog.appendChild(desc);
 
     const form = document.createElement('div');
@@ -347,7 +360,13 @@ function promptCreateSubkey(key) {
       confirmBtn.disabled = true;
       cancelBtn.disabled = true;
       statusDiv.style.display = 'block';
-      statusDiv.innerHTML = '⌛ <strong>Creating subkey...</strong><br>Please enter your master GPG key passphrase in the system prompt if requested.';
+      statusDiv.textContent = '';
+      const strongWait = document.createElement('strong');
+      strongWait.textContent = 'Creating subkey...';
+      statusDiv.appendChild(document.createTextNode('⌛ '));
+      statusDiv.appendChild(strongWait);
+      statusDiv.appendChild(document.createElement('br'));
+      statusDiv.appendChild(document.createTextNode('Please enter your master GPG key passphrase in the system prompt if requested.'));
 
       try {
         const response = await new Promise((resResolve) => {
@@ -362,7 +381,11 @@ function promptCreateSubkey(key) {
 
         if (response && response.status === 'success') {
           statusDiv.style.color = '#27ae60';
-          statusDiv.innerHTML = '✅ <strong>Subkey created successfully!</strong>';
+          statusDiv.textContent = '';
+          const strongSuccess = document.createElement('strong');
+          strongSuccess.textContent = 'Subkey created successfully!';
+          statusDiv.appendChild(document.createTextNode('✅ '));
+          statusDiv.appendChild(strongSuccess);
           setTimeout(() => {
             document.body.removeChild(overlay);
             resolve(true);
@@ -372,7 +395,12 @@ function promptCreateSubkey(key) {
         }
       } catch (err) {
         statusDiv.style.color = '#c0392b';
-        statusDiv.innerHTML = `❌ <strong>Error:</strong> ${err.message}`;
+        statusDiv.textContent = '';
+        const strongError = document.createElement('strong');
+        strongError.textContent = 'Error:';
+        statusDiv.appendChild(document.createTextNode('❌ '));
+        statusDiv.appendChild(strongError);
+        statusDiv.appendChild(document.createTextNode(' ' + err.message));
         confirmBtn.disabled = false;
         cancelBtn.disabled = false;
       }
