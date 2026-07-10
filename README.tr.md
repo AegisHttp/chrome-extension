@@ -2,6 +2,8 @@
 
 ![Logo](icons/logo.png)
 
+[![Available in the Chrome Web Store](https://developer.chrome.com/docs/webstore/images/ChromeWebStore_Badge_v2_206x58.png)](https://chromewebstore.google.com/detail/lappbcambkogfmigiphapgjcglafcfnd)
+
 Aegis Http, web uygulamalarınızın gönderdiği veri trafiğini (POST, PUT vb.) arka planda tamamen şeffaf ve otonom bir şekilde PGP kullanarak şifreleyen bir Uçtan Uca Şifrelemeli (E2E) ağ geçidi Chrome uzantısıdır. Frontend (Angular, React, Vue vb.) kodlarınızda herhangi bir şifreleme mantığı kullanmadan veri trafiğini güvence altına alır.
 
 ## Özellikler
