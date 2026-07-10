@@ -8,7 +8,7 @@ const generateUUID = () => {
     });
 };
 
-window.gpgLogin = function(challenge) {
+window.gpgLogin = function(challenge, email) {
   if (!window.aegis || !window.aegis.initialized) {
     return Promise.reject(new Error("Aegis SDK is not initialized on this page."));
   }
@@ -26,7 +26,7 @@ window.gpgLogin = function(challenge) {
       }
     };
     window.addEventListener('GPG_LOGIN_RESPONSE', listener);
-    window.dispatchEvent(new CustomEvent('GPG_LOGIN_REQUEST', { detail: JSON.stringify({ challenge }) }));
+    window.dispatchEvent(new CustomEvent('GPG_LOGIN_REQUEST', { detail: JSON.stringify({ challenge, email }) }));
   });
 };
 
@@ -94,28 +94,28 @@ window.fetch = async function(...args) {
         const serverId = serverConfig.id;
 
         if (!pubkey || Date.now() > expires) {
-            console.log("[GPG Extension] Server Public Key missing or expired. Autonomously fetching from Ubuntu Keyserver...");
+            console.log("[GPG Extension] Server Public Key missing or expired. Fetching from origin API...");
             try {
                 let pkRes = null;
                 try {
-                    pkRes = await originalFetch(`http://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=${encodeURIComponent(serverId)}`);
+                    pkRes = await originalFetch(origin + "/api/server-pubkey");
                 } catch (e) {
-                    console.warn("[GPG Extension] Keyserver fetch threw exception (CORS/Network).", e);
+                    console.warn("[GPG Extension] Origin pubkey fetch failed. Trying keyserver fallback...", e);
                 }
                 
                 if (!pkRes || !pkRes.ok) {
-                    console.warn("[GPG Extension] Keyserver lookup failed. Falling back to origin API...");
-                    pkRes = await originalFetch(origin + "/api/server-pubkey");
+                    console.log("[GPG Extension] Origin lookup failed. Falling back to Ubuntu Keyserver...");
+                    pkRes = await originalFetch(`http://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=${encodeURIComponent(serverId)}`);
                 }
                 
-                if (pkRes.ok) {
+                if (pkRes && pkRes.ok) {
                     pubkey = await pkRes.text();
                     serverConfig.pubkey = pubkey;
                     serverConfig.expires = Date.now() + 10 * 60 * 1000; // 10 minutes cache
                     saveServerCache(cache);
                     console.log("[GPG Extension] Successfully fetched and cached Server Public Key.");
                 } else {
-                    console.error("[GPG Extension] Failed to fetch server public key.", pkRes.status);
+                    console.error("[GPG Extension] Failed to fetch server public key.");
                 }
             } catch (err) {
                 console.error("[GPG Extension] Key fetch failed:", err);
@@ -213,6 +213,23 @@ window.fetch = async function(...args) {
             currentCache[origin].id = gpgServerId;
         }
         saveServerCache(currentCache);
+    }
+
+    // Clear cache if server reports decryption/key error
+    if (response.status === 400 && serverConfig) {
+        try {
+            const clone = response.clone();
+            const bodyText = await clone.text();
+            if (bodyText.includes("incorrect key") || bodyText.includes("Failed to decrypt")) {
+                console.warn("[GPG Extension] Decryption failed on server. Clearing cached server public key to force refetch next time.");
+                const currentCache = getServerCache();
+                if (currentCache[origin]) {
+                    currentCache[origin].pubkey = null;
+                    currentCache[origin].expires = 0;
+                    saveServerCache(currentCache);
+                }
+            }
+        } catch (e) {}
     }
 
     // INBOUND E2E DECRYPTION
