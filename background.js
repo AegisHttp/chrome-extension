@@ -40,16 +40,39 @@ function getPort() {
       }
     });
     
+function mapNativeMessagingError(rawError) {
+  if (!rawError) return "disconnect: Native host disconnected";
+  const errStr = String(rawError).toLowerCase();
+  
+  if (errStr.includes("no such native application") || 
+      errStr.includes("not found") || 
+      errStr.includes("missing") || 
+      errStr.includes("not registered")) {
+    return "no_native_host: com.aegis.http.gpg not registered or installed";
+  }
+  
+  if (errStr.includes("disconnected") || 
+      errStr.includes("exit") || 
+      errStr.includes("closed") || 
+      errStr.includes("aborted")) {
+    return "disconnect: Native host process exited or disconnected";
+  }
+  
+  return "general_error: " + rawError;
+}
+
     nativePort.onDisconnect.addListener((p) => {
       console.error("Disconnected from native host.", chrome.runtime.lastError, p ? p.error : null);
-      let errMsg = "Native host disconnected";
+      let rawMsg = "";
       if (chrome.runtime.lastError && chrome.runtime.lastError.message) {
-        errMsg = chrome.runtime.lastError.message;
+        rawMsg = chrome.runtime.lastError.message;
       } else if (p && p.error && p.error.message) {
-        errMsg = p.error.message;
+        rawMsg = p.error.message;
       } else if (nativePort && nativePort.error && nativePort.error.message) {
-        errMsg = nativePort.error.message;
+        rawMsg = nativePort.error.message;
       }
+      
+      const errMsg = mapNativeMessagingError(rawMsg);
       
       for (const req of pendingRequests.values()) {
         req.reject(new Error(errMsg));
