@@ -52,7 +52,7 @@ window.fetch = async function(...args) {
     const origin = new URL(urlString, window.location.origin).origin;
 
     // AUTONOMOUS AUTH INJECTION
-    const isGpgAuto = document.querySelector('meta[name="gpg-auto"]')?.content === 'true';
+    const isGpgAuto = Boolean(window.aegis && window.aegis.initialized && window.aegis.auto !== false);
     if (isGpgAuto) {
         if (!config) config = {};
         if (!config.headers) config.headers = {};
@@ -85,7 +85,7 @@ window.fetch = async function(...args) {
     const isPostOrPut = (originalMethod === 'POST' || originalMethod === 'PUT' || originalMethod === 'PATCH');
     const hasBody = !!(config && config.body);
     
-    const isEnforcedTunnel = document.querySelector('meta[name="gpg-tunnel"]')?.content === 'true';
+    const isEnforcedTunnel = Boolean(window.aegis && window.aegis.initialized && (window.aegis.tunnel === true || window.aegis.tunneling === true));
 
     // Trigger autonomous encryption if origin is known to support GPG and there's a body or tunneling is on
     if (serverConfig && (isTunneling || isEnforcedTunnel || (isPostOrPut && hasBody))) {
@@ -342,13 +342,34 @@ window.gpgVerifyLogin = function(challenge, email) {
                 }
                 if (prop === 'send') {
                     return async function(body) {
+                        if (!window.aegis || !window.aegis.initialized) {
+                            return target.send(body);
+                        }
                         const origin = new URL(_url, window.location.origin).origin;
                         const cache = getServerCache();
                         const serverConfig = cache[origin];
                         
+                        const isGpgAuto = Boolean(window.aegis && window.aegis.initialized && window.aegis.auto !== false);
+                        if (isGpgAuto) {
+                            try {
+                                const cachedToken = sessionStorage.getItem('gpg_global_session_token');
+                                const cachedEmail = sessionStorage.getItem('gpg_global_session_email');
+                                if (cachedToken && cachedEmail) {
+                                    if (!_headers['x-gpg-id']) {
+                                        _headers['x-gpg-id'] = cachedEmail;
+                                        target.setRequestHeader('x-gpg-id', cachedEmail);
+                                    }
+                                    if (!_headers['x-gpg-session-token']) {
+                                        _headers['x-gpg-session-token'] = cachedToken;
+                                        target.setRequestHeader('x-gpg-session-token', cachedToken);
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
                         let finalBody = body;
                         let isTunneling = false;
-                        const isEnforcedTunnel = document.querySelector('meta[name="gpg-tunnel"]')?.content === 'true';
+                        const isEnforcedTunnel = Boolean(window.aegis && window.aegis.initialized && (window.aegis.tunnel === true || window.aegis.tunneling === true));
 
                         if (serverConfig && serverConfig.id && serverConfig.pubkey && Date.now() <= serverConfig.expires) {
                             if (serverConfig.tunneling || isEnforcedTunnel) {
